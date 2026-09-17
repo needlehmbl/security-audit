@@ -8,20 +8,10 @@ Usage:
     python scripts/run_audit.py --host 192.168.1.1
     python scripts/run_audit.py --local-only
 
-TODO(implementation):
-    - argparse: mutually exclusive --subnet / --host / --local-only
-    - if --subnet: hosts = host_discovery.discover_hosts(subnet)
-      if --host: hosts = [host]
-      if --local-only: skip network scanning entirely
-    - for each host: findings = port_scanner.scan_host(host); classify
-      each open port with risk_rules.classify_port(port, banner)
-    - always run local config checks (ssh_check.check_ssh_config(),
-      firewall_check.check_firewall()) regardless of mode, since
-      they're about this machine, not the network
-    - content = report_generator.build_report(host_findings, config_findings)
-    - path = report_generator.write_report(content)
-    - print a short summary to stdout (finding counts by severity) and
-      the report path — don't dump the whole report to the terminal
+Local config checks (SSH, firewall) always run regardless of mode,
+since they're about this machine, not the network. A short summary —
+finding counts by severity plus the report path — is printed to
+stdout; the full report is written to disk as Markdown.
 """
 
 import argparse
@@ -30,12 +20,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scan.host_discovery import discover_hosts
-from scan.port_scanner import scan_host
-from checks.risk_rules import classify_port
+from checks.risk_rules import Severity, classify_port, severity_rank
 from checks.ssh_check import check_ssh_config
 from checks.firewall_check import check_firewall
-from report.report_generator import build_report, write_report
+from scan.host_discovery import NmapNotFound, discover_hosts
+from scan.port_scanner import scan_host
+from report.report_generator import build_report, normalize_finding, write_report
+
+
+def _classify_host(host: str, port_range: str = "1-1024") -> list[dict]:
+    results = scan_host(host, port_range)
+    return [
+        {**result, "rule": classify_port(result["port"], result["banner"])}
+        for result in results
+    ]
 
 
 def main() -> None:
@@ -46,11 +44,48 @@ def main() -> None:
     group.add_argument("--local-only", action="store_true", help="Skip network scan, run local config checks only")
     args = parser.parse_args()
 
-    raise NotImplementedError(
-        "run_audit main: wire together discover_hosts/scan_host/classify_port for "
-        "--subnet or --host, always run check_ssh_config + check_firewall, then "
-        "build_report + write_report. See module docstring for the intended flow."
-    )
+    host_findings: dict[str, list] = {}
+
+    if args.subnet or args.host:
+        hosts = [args.host] if args.host else None
+        try:
+            if hosts is None:
+                hosts = discover_hosts(args.subnet)
+        except NmapNotFound as exc:
+            print(f"Network scan skipped: {exc}", file=sys.stderr)
+            hosts = []
+        for host in hosts:
+            try:
+                host_findings[host] = _classify_host(host)
+            except NmapNotFound as exc:
+                print(f"Port scan skipped: {exc}", file=sys.stderr)
+                break
+
+    config_findings = check_ssh_config() + check_firewall()
+
+    content = build_report(host_findings, config_findings)
+    path = write_report(content)
+    print_summary(host_findings, config_findings, path)
+
+
+def print_summary(host_findings: dict[str, list], config_findings: list, path: Path) -> None:
+    all_findings: list[dict] = []
+    for findings in host_findings.values():
+        for finding in findings:
+            all_findings.append(normalize_finding("port-scan", finding))
+    for finding in config_findings:
+        all_findings.append(normalize_finding(finding.get("source", "config"), finding))
+
+    counts = {
+        severity: sum(1 for f in all_findings if f["severity"] is severity)
+        for severity in Severity
+    }
+    severities = sorted(Severity, key=severity_rank, reverse=True)
+    summary = ", ".join(f"{severity.value}: {counts[severity]}" for severity in severities)
+    hosts_scanned = ", ".join(host_findings) or "none"
+    print(f"Report: {path}")
+    print(f"Hosts scanned: {hosts_scanned}")
+    print(f"Findings -> {summary}")
 
 
 if __name__ == "__main__":

@@ -115,19 +115,23 @@ in a writeup since it's where the tool's actual judgment lives.
 
 ## Status
 
+All stages are implemented and wired through the CLI.
+
 | Module | State |
 |--------|-------|
-| `checks/risk_rules.py` | Fully implemented and tested — the rule table is the core judgment logic |
-| `checks/firewall_check.py` | `parse_ufw_status` implemented and tested; shelling out to `ufw`/`iptables` pending |
-| `checks/ssh_check.py` | Pending — parsing + checks documented in the module docstring |
-| `scan/host_discovery.py` | Pending — nmap `-sn` ping-scan wrapper |
-| `scan/port_scanner.py` | Pending — nmap `-sV` version-detection scan |
-| `report/report_generator.py` | `write_report` done; finding normalization + Markdown rendering pending |
-| `scripts/run_audit.py` | CLI args done; stage wiring pending |
+| `checks/risk_rules.py` | Implemented and tested — the rule table is the core judgment logic |
+| `checks/firewall_check.py` | `parse_ufw_status` + `check_firewall` implemented and tested; handles missing tools / no-sudo gracefully |
+| `checks/ssh_check.py` | Implemented and tested — parser + checks + graceful handling of unreadable config |
+| `scan/host_discovery.py` | Implemented — nmap `-sn` ping-scan wrapper |
+| `scan/port_scanner.py` | Implemented — nmap `-sV` version-detection scan |
+| `report/report_generator.py` | Implemented and tested — normalization, severity-ranked Markdown rendering, file output |
+| `scripts/run_audit.py` | Implemented — stages wired; prints summary + writes report |
 
-The implemented modules are pure logic with no live network/system
-dependency, so they're fully covered by `tests/`. The remaining modules
-define their interfaces and implementation plan in their docstrings.
+Pure-logic modules (risk rules, ufw parsing, SSH parsing, report
+generation) are fully covered by `tests/` — they run with no live
+network or system privileges. The nmap scan stages require the `nmap`
+binary; if it's missing the CLI reports that clearly and continues
+with the local config checks.
 
 ## Roadmap ideas (post-scaffold)
 
