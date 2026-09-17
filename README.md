@@ -1,6 +1,6 @@
 # Home Network Security Audit Tool
 
-A local network and host security scanner: discovers active hosts on your
+Local network and host security scanner: discovers active hosts on your
 LAN, scans for open ports and identifies risky services, checks common
 misconfigurations (SSH hardening, firewall status), and generates a
 readable report with severity-ranked findings.
@@ -83,6 +83,17 @@ python scripts/run_audit.py --local-only
 Reports are written to `data/reports/audit_<timestamp>.md` — Markdown so
 they're readable in a terminal, on GitHub, or converted to HTML/PDF later.
 
+## Testing
+
+Pure-logic modules are tested against realistic sample input, so they
+can be verified with no live network or system privileges:
+
+```bash
+source venv/bin/activate
+pip install pytest
+python -m pytest tests/ -v
+```
+
 ## Risk classification
 
 `checks/risk_rules.py` is the single source of truth for what counts as
@@ -104,11 +115,19 @@ in a writeup since it's where the tool's actual judgment lives.
 
 ## Status
 
-Scaffold stage. `checks/risk_rules.py` (the rule table + classification
-logic) and `checks/firewall_check.py`'s `ufw` output parser are fully
-implemented and tested, since both are pure logic with no live
-network/system dependency. Every other module defines its interface and
-is marked `TODO(implementation)`.
+| Module | State |
+|--------|-------|
+| `checks/risk_rules.py` | Fully implemented and tested — the rule table is the core judgment logic |
+| `checks/firewall_check.py` | `parse_ufw_status` implemented and tested; shelling out to `ufw`/`iptables` pending |
+| `checks/ssh_check.py` | Pending — parsing + checks documented in the module docstring |
+| `scan/host_discovery.py` | Pending — nmap `-sn` ping-scan wrapper |
+| `scan/port_scanner.py` | Pending — nmap `-sV` version-detection scan |
+| `report/report_generator.py` | `write_report` done; finding normalization + Markdown rendering pending |
+| `scripts/run_audit.py` | CLI args done; stage wiring pending |
+
+The implemented modules are pure logic with no live network/system
+dependency, so they're fully covered by `tests/`. The remaining modules
+define their interfaces and implementation plan in their docstrings.
 
 ## Roadmap ideas (post-scaffold)
 
