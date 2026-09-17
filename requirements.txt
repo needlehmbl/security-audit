@@ -1,0 +1,4 @@
+python-nmap>=0.7.1
+tqdm>=4.66.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
