@@ -8,14 +8,6 @@ readable report with severity-ranked findings.
 Built as a practical tool for auditing your own network/workstation —
 grounded in real sysadmin work rather than a generic tutorial dataset.
 
-## Why this exists
-
-Security tooling is a differentiator in most portfolios, which skew
-heavily toward web/AI projects. This demonstrates network fundamentals
-(ports, services, protocols), config auditing, and — just as
-importantly — how to turn raw scan output into a report a non-expert
-could act on, which is the actual job of a security tool.
-
 **Only run this against hosts/networks you own or have explicit
 permission to scan.** Scanning networks you don't control, even
 passively, can violate terms of service or local law.
